@@ -1,0 +1,218 @@
+* {
+  box-sizing: border-box;
+}
+
+:root {
+  font-family: Arial, Helvetica, sans-serif;
+  color: #f5f5f5;
+  background: #090a09;
+  font-synthesis: none;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  min-width: 320px;
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  min-height: 100vh;
+}
+
+button {
+  font: inherit;
+}
+
+.game-page {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 18px;
+  background: #090a09;
+}
+
+.game-card {
+  width: min(100%, 340px);
+  padding: 20px 19px 17px;
+  border: 1px solid #363636;
+  border-radius: 9px;
+  background: #080908;
+  box-shadow: 0 12px 36px #000a;
+}
+
+.game-heading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 13px;
+}
+
+.logo-snake {
+  width: 39px;
+  height: 34px;
+  filter: drop-shadow(0 0 5px #27e95088);
+}
+
+.game-heading h1 {
+  margin: 0;
+  color: #20db43;
+  font-size: 19px;
+  font-weight: 900;
+  letter-spacing: 0.035em;
+  text-shadow: 0 0 12px #20db4355;
+}
+
+.board-frame {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid #626262;
+  border-radius: 2px;
+  background: #101411;
+}
+
+.board {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 6 / 5;
+}
+
+.fruit-float {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: fruit-hover 1.8s ease-in-out infinite;
+}
+
+@keyframes fruit-hover {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fruit-float,
+  .game-over-banner {
+    animation: none;
+  }
+}
+
+.game-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 19px;
+  padding-top: 12px;
+}
+
+.game-controls strong {
+  color: #f5f5f5;
+  font-size: 14px;
+}
+
+.game-controls button,
+.game-overlay button {
+  min-width: 75px;
+  padding: 7px 15px;
+  border: 1px solid #fff;
+  border-radius: 5px;
+  color: #fff;
+  background: #c83727;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.game-controls button:hover,
+.game-overlay button:hover {
+  background: #e14632;
+}
+
+.game-over-banner {
+  width: min(100%, 198px);
+  margin: 20px auto 4px;
+  padding: 7px 10px;
+  border: 2px solid #138b4a;
+  border-radius: 7px;
+  color: #f4eff4;
+  background: #160f19;
+  font-size: 19px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-align: center;
+  animation:
+    banner-appear 0.35s ease-out both,
+    banner-zoom 1.8s ease-in-out 0.35s infinite;
+}
+
+.game-over-banner:hover {
+  border-color: #22c96c;
+  box-shadow: 0 0 14px #20d96c55;
+}
+
+@keyframes banner-appear {
+  from {
+    opacity: 0;
+    transform: translateY(7px) scale(0.97);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes banner-zoom {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 5px #20d96c22;
+  }
+
+  50% {
+    transform: scale(1.04);
+    box-shadow: 0 0 15px #20d96c66;
+  }
+}
+
+.game-overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  border-radius: 2px;
+  background: #050706dc;
+  text-align: center;
+}
+
+.game-overlay h2 {
+  margin: 0 0 4px;
+  color: #f5f5f5;
+  font-size: 24px;
+}
+
+.game-overlay p {
+  margin: 0 0 14px;
+  color: #c0c0c0;
+  font-size: 13px;
+}
+
+@media (max-width: 380px) {
+  .game-card {
+    padding: 16px;
+  }
+
+  .game-heading h1 {
+    font-size: 18px;
+  }
+}
