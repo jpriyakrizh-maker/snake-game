@@ -1,249 +1,1095 @@
-import { useEffect, useRef, useState } from 'react';
-import './App.css';
+import { useEffect, useRef, useState } from "react";
+import "./App.css";
 
 const COLS = 24;
 const ROWS = 20;
 const CELL = 24;
-const FRUITS = ['apple', 'banana', 'pear', 'pineapple', 'kiwi', 'orange', 'watermelon', 'cherry', 'grapes', 'strawberry'];
-const START = [{ x: 8, y: 10 }, { x: 7, y: 10 }, { x: 6, y: 10 }, { x: 5, y: 10 }];
 
-function placeFruit(snake, type = 'apple') {
-  const open = [];
-  for (let y = 1; y < ROWS - 1; y += 1) {
-    for (let x = 1; x < COLS - 1; x += 1) {
-      if (!snake.some((part) => part.x === x && part.y === y)) open.push({ x, y });
+const FRUITS = [
+  "apple",
+  "banana",
+  "pear",
+  "pineapple",
+  "kiwi",
+  "orange",
+  "watermelon",
+  "cherry",
+  "grapes",
+  "strawberry",
+];
+
+const START = [
+  { x: 8, y: 10 },
+  { x: 7, y: 10 },
+  { x: 6, y: 10 },
+  { x: 5, y: 10 },
+];
+
+/* =========================================================
+   PLACE FRUIT
+   RANDOM POSITION
+   AWAY FROM BORDER
+========================================================= */
+function placeFruit(snake, type) {
+  const freeCells = [];
+
+  // Keep fruit well inside the board
+  for (let y = 4; y < ROWS - 4; y++) {
+    for (let x = 4; x < COLS - 4; x++) {
+      const occupied = snake.some(
+        (part) => part.x === x && part.y === y
+      );
+
+      if (!occupied) {
+        freeCells.push({ x, y });
+      }
     }
   }
-  return { ...open[Math.floor(Math.random() * open.length)], type };
+
+  const randomCell =
+    freeCells[Math.floor(Math.random() * freeCells.length)];
+
+  return {
+    x: randomCell.x,
+    y: randomCell.y,
+    type,
+  };
 }
 
-function findNextStep(snake, target) {
-  const head = snake[0];
-  const body = new Set(snake.slice(0, -1).map(({ x, y }) => `${x},${y}`));
-  const directions = [{ x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }];
-  const queue = [{ x: head.x, y: head.y, first: null }];
-  const seen = new Set([`${head.x},${head.y}`]);
-
-  for (let i = 0; i < queue.length; i += 1) {
-    const current = queue[i];
-    if (current.x === target.x && current.y === target.y) return current.first;
-    for (const direction of directions) {
-      const x = current.x + direction.x;
-      const y = current.y + direction.y;
-      const key = `${x},${y}`;
-      if (x < 0 || x >= COLS || y < 0 || y >= ROWS || seen.has(key) || (body.has(key) && !(x === target.x && y === target.y))) continue;
-      seen.add(key);
-      queue.push({ x, y, first: current.first || direction });
-    }
-  }
-
-  return directions
-    .map((direction) => ({ direction, x: head.x + direction.x, y: head.y + direction.y }))
-    .filter(({ x, y }) => x >= 0 && x < COLS && y >= 0 && y < ROWS && !body.has(`${x},${y}`))
-    .sort((a, b) => (Math.abs(a.x - target.x) + Math.abs(a.y - target.y)) - (Math.abs(b.x - target.x) + Math.abs(b.y - target.y)))[0]?.direction || { x: 0, y: 1 };
-}
+/* =========================================================
+   FRUIT SVGs
+========================================================= */
 
 function Fruit({ type }) {
-  if (type === 'orange') return <g aria-label="Orange">
-    <path d="M15 9c1-4 5-5 8-3-1 4-4 5-8 3Z" fill="#48dc70" />
-    <circle cx="15" cy="19" r="11" fill="#ff962f" stroke="#ffd078" strokeWidth="1.4" />
-    <path d="M9 14c2-3 5-4 7-4" fill="none" stroke="#fff2ca" strokeWidth="1.5" strokeLinecap="round" opacity=".8" />
-    <circle cx="15" cy="8" r="1.5" fill="#bd6921" />
-  </g>;
-
-  if (type === 'banana') return <g aria-label="Banana">
-    <path d="M5 12c3 9 11 14 21 9-4 8-14 10-21 4-3-3-4-8-3-12Z" fill="#ffd84a" stroke="#fff0a0" strokeWidth="1.2" />
-    <path d="M7 16c4 5 10 7 16 4" fill="none" stroke="#fff4b6" strokeWidth="2" strokeLinecap="round" />
-    <path d="m3 11 3-1 1 3-2 2M25 19l3 1-1 3-3-1" fill="#80512e" />
-  </g>;
-
-  if (type === 'cherry') return <g aria-label="Cherries">
-    <path d="M12 17c0-7 0-11 3-14M17 16c4-8 7-10 10-10" fill="none" stroke="#53d979" strokeWidth="2" strokeLinecap="round" />
-    <path d="M15 4c2-3 6-3 8-1-2 3-5 4-8 1Z" fill="#45d46a" />
-    <circle cx="10" cy="21" r="7" fill="#e72e55" stroke="#ff8b9b" strokeWidth="1.2" />
-    <circle cx="23" cy="21" r="7" fill="#d91f48" stroke="#ff8395" strokeWidth="1.2" />
-    <ellipse cx="8" cy="18" rx="2" ry="2.8" fill="#fff" opacity=".32" />
-    <ellipse cx="21" cy="18" rx="2" ry="2.8" fill="#fff" opacity=".32" />
-  </g>;
-
-  if (type === 'watermelon') return <g aria-label="Watermelon slice">
-    <path d="M3 11a13 13 0 0 0 24 0Z" fill="#ff5265" stroke="#a6e66b" strokeWidth="3.5" strokeLinejoin="round" />
-    <path d="M5 13a11 11 0 0 0 20 0" fill="none" stroke="#f4ffad" strokeWidth="1.4" />
-    <g fill="#452b38"><ellipse cx="10" cy="15" rx=".9" ry="1.5"/><ellipse cx="16" cy="17" rx=".9" ry="1.5"/><ellipse cx="21" cy="14" rx=".9" ry="1.5"/></g>
-  </g>;
-
-  if (type === 'pineapple') return <g aria-label="Pineapple">
-    <path d="M14 12 8 4l7 4 2-7 3 7 7-4-6 9Z" fill="#4cda72" />
-    <path d="M11 11c-7 5-6 18 4 21 11-1 13-16 5-21Z" fill="#ffc94d" stroke="#ffdf7f" strokeWidth="1.2" />
-    <path d="m12 15 10 11M21 14l-9 13M12 20l10-5M13 26l8-5" fill="none" stroke="#d99432" strokeWidth=".9" opacity=".8" />
-  </g>;
-
-  if (type === 'pear') return <g aria-label="Pear">
-    <path d="M15 10c0-4 1-6 3-8" fill="none" stroke="#80552f" strokeWidth="2" strokeLinecap="round" />
-    <path d="M16 7c2-4 6-4 9-2-2 3-5 4-9 2Z" fill="#48d96b" />
-    <path d="M15 11c-2 5-9 8-8 15 1 7 15 9 19 2 3-6-4-11-6-17-1-3-4-3-5 0Z" fill="#a5df54" stroke="#d3f889" strokeWidth="1.1" />
-    <ellipse cx="11" cy="21" rx="2" ry="3.5" fill="#f2ffbb" opacity=".5" />
-  </g>;
-
-  if (type === 'kiwi') return <g aria-label="Kiwi slice">
-    <circle cx="15" cy="18" r="13" fill="#9b603a" />
-    <circle cx="15" cy="18" r="10.5" fill="#8cdb58" />
-    <circle cx="15" cy="18" r="3.2" fill="#f8f2cc" />
-    <g fill="#3d382e"><ellipse cx="15" cy="11" rx=".8" ry="1.5"/><ellipse cx="20" cy="13" rx=".8" ry="1.5" transform="rotate(45 20 13)"/><ellipse cx="22" cy="18" rx=".8" ry="1.5" transform="rotate(90 22 18)"/><ellipse cx="20" cy="23" rx=".8" ry="1.5" transform="rotate(-45 20 23)"/><ellipse cx="15" cy="25" rx=".8" ry="1.5"/><ellipse cx="10" cy="23" rx=".8" ry="1.5" transform="rotate(45 10 23)"/><ellipse cx="8" cy="18" rx=".8" ry="1.5" transform="rotate(90 8 18)"/><ellipse cx="10" cy="13" rx=".8" ry="1.5" transform="rotate(-45 10 13)"/></g>
-  </g>;
-
-  if (type === 'grapes') return <g aria-label="Grapes">
-    <path d="M12 7c2-4 6-4 8-2" fill="none" stroke="#986439" strokeWidth="2" strokeLinecap="round" />
-    <path d="M16 7c4-3 7-1 8 1-3 2-6 2-8-1Z" fill="#43cb70" />
-    <g fill="#a451ee"><circle cx="11" cy="12" r="4"/><circle cx="18" cy="12" r="4"/><circle cx="7.5" cy="18" r="4"/><circle cx="15" cy="19" r="4"/><circle cx="22" cy="18" r="4"/><circle cx="11.5" cy="25" r="4"/><circle cx="19" cy="25" r="4"/></g>
-    <circle cx="10" cy="11" r="1.2" fill="#f4dcff" />
-  </g>;
-  if (type === 'strawberry') return <g aria-label="Strawberry">
-    <path d="M15 10c-2-5-7-4-7-1 3 0 4 2 7 4 3-2 4-4 7-4 0-3-5-4-7 1Z" fill="#54e57d" />
-    <path d="M15 12c-3-4-10-3-10 3 0 7 8 14 10 15 2-1 10-8 10-15 0-6-7-7-10-3Z" fill="#ff4861" />
-    <g fill="#ffe28c"><circle cx="10" cy="16" r=".8"/><circle cx="16" cy="15" r=".8"/><circle cx="21" cy="17" r=".8"/><circle cx="12" cy="22" r=".8"/><circle cx="18" cy="22" r=".8"/><circle cx="15" cy="27" r=".8"/></g>
-  </g>;
-  return <g aria-label="Apple">
-    <path d="M15 10c-1-5 2-7 5-7" fill="none" stroke="#986439" strokeWidth="2" strokeLinecap="round" />
-    <path d="M16 7c1-4 5-4 8-2-2 3-5 4-8 2Z" fill="#49db72" />
-    <path d="M15 12c-7-7-14 0-11 9 2 7 7 11 11 8 4 3 9-1 11-8 3-9-4-16-11-9Z" fill="url(#appleGradient)" />
-    <ellipse cx="9" cy="17" rx="2.4" ry="4" fill="#fff" opacity=".2" />
-  </g>;
-}
-
-function fruitLabel(type) {
-  const labels = {
-    apple: 'Apple',
-    grapes: 'Grapes',
-    strawberry: 'Strawberry',
-    orange: 'Orange',
-    banana: 'Banana',
-    cherry: 'Cherries',
-    watermelon: 'Watermelon',
-    pineapple: 'Pineapple',
-    pear: 'Pear',
-    kiwi: 'Kiwi',
+  const common = {
+    viewBox: "0 0 48 48",
+    width: "34",
+    height: "34",
+    className: "fruit-svg",
   };
-  return labels[type] || 'Apple';
+
+  switch (type) {
+    case "apple":
+      return (
+        <svg {...common}>
+          <defs>
+            <linearGradient
+              id="appleGradient"
+              x1="0"
+              y1="0"
+              x2="1"
+              y2="1"
+            >
+              <stop offset="0%" stopColor="#ff6262" />
+              <stop offset="100%" stopColor="#b71919" />
+            </linearGradient>
+          </defs>
+
+          <path
+            d="M24 14C18 9 8 13 8 24c0 11 7 17 16 17s16-6 16-17c0-11-10-15-16-10Z"
+            fill="url(#appleGradient)"
+          />
+
+          <path
+            d="M24 14c0-5 3-9 8-10"
+            fill="none"
+            stroke="#70451f"
+            strokeWidth="3"
+            strokeLinecap="round"
+          />
+
+          <path
+            d="M27 8c5-3 9-1 11 2-5 2-9 2-11-2Z"
+            fill="#39a94b"
+          />
+
+          <ellipse
+            cx="17"
+            cy="21"
+            rx="4"
+            ry="7"
+            fill="#fff"
+            opacity=".3"
+          />
+        </svg>
+      );
+
+    case "banana":
+      return (
+        <svg {...common}>
+          <path
+            d="M10 14c3 16 12 24 25 22 5-1 8-4 9-8-8 3-14 1-19-4-4-4-6-8-7-13Z"
+            fill="#ffd84d"
+            stroke="#c99818"
+            strokeWidth="2"
+          />
+
+          <path
+            d="M13 14c2 13 9 19 18 20"
+            fill="none"
+            stroke="#fff2a8"
+            strokeWidth="3"
+            strokeLinecap="round"
+          />
+
+          <path
+            d="M10 13l3-3M42 28l2 1"
+            stroke="#765019"
+            strokeWidth="3"
+            strokeLinecap="round"
+          />
+        </svg>
+      );
+
+    case "pear":
+      return (
+        <svg {...common}>
+          <defs>
+            <linearGradient
+              id="pearGradient"
+              x1="0"
+              y1="0"
+              x2="1"
+              y2="1"
+            >
+              <stop offset="0%" stopColor="#e5ff72" />
+              <stop offset="100%" stopColor="#67a82e" />
+            </linearGradient>
+          </defs>
+
+          <path
+            d="M24 13c-2-6 0-10 4-12"
+            fill="none"
+            stroke="#6b451f"
+            strokeWidth="3"
+            strokeLinecap="round"
+          />
+
+          <path
+            d="M27 5c5-3 9-1 10 2-4 2-8 2-10-2Z"
+            fill="#3fa34d"
+          />
+
+          <path
+            d="M24 13c-5 0-8 4-8 8-7 3-9 9-7 15 2 8 8 11 15 11s13-3 15-11c2-6 0-12-7-15 0-4-3-8-8-8Z"
+            fill="url(#pearGradient)"
+          />
+
+          <ellipse
+            cx="18"
+            cy="28"
+            rx="4"
+            ry="7"
+            fill="#fff"
+            opacity=".25"
+          />
+        </svg>
+      );
+
+    case "pineapple":
+      return (
+        <svg {...common}>
+          <path
+            d="M19 13C14 8 15 4 17 1c3 3 5 6 4 10"
+            fill="#46a947"
+          />
+
+          <path
+            d="M25 12C24 6 27 2 31 1c1 5-1 9-5 12"
+            fill="#39963e"
+          />
+
+          <path
+            d="M29 14c3-5 7-6 10-5-1 5-5 7-9 8"
+            fill="#4fb24f"
+          />
+
+          <path
+            d="M14 14h20l4 24c-4 5-10 7-14 7s-10-2-14-7l4-24Z"
+            fill="#f5bd2f"
+            stroke="#c68c16"
+            strokeWidth="2"
+          />
+
+          <path
+            d="M17 20l16 18M14 27l14 14M29 20L15 36M34 28L22 42"
+            stroke="#9c6b12"
+            strokeWidth="2"
+          />
+        </svg>
+      );
+
+    case "kiwi":
+      return (
+        <svg {...common}>
+          <ellipse
+            cx="24"
+            cy="25"
+            rx="15"
+            ry="17"
+            fill="#76502e"
+          />
+
+          <ellipse
+            cx="24"
+            cy="25"
+            rx="11"
+            ry="13"
+            fill="#7ecb45"
+          />
+
+          <ellipse
+            cx="24"
+            cy="25"
+            rx="3"
+            ry="4"
+            fill="#f5e6bd"
+          />
+
+          {[
+            [24, 9],
+            [30, 12],
+            [35, 18],
+            [36, 25],
+            [33, 32],
+            [27, 38],
+            [20, 39],
+            [14, 34],
+            [11, 27],
+            [12, 19],
+            [17, 13],
+          ].map(([cx, cy], index) => (
+            <circle
+              key={index}
+              cx={cx}
+              cy={cy}
+              r="1.2"
+              fill="#17110b"
+            />
+          ))}
+        </svg>
+      );
+
+    case "orange":
+      return (
+        <svg {...common}>
+          <defs>
+            <radialGradient id="orangeGradient">
+              <stop offset="0%" stopColor="#ffc04a" />
+              <stop offset="100%" stopColor="#e66a08" />
+            </radialGradient>
+          </defs>
+
+          <circle
+            cx="24"
+            cy="26"
+            r="15"
+            fill="url(#orangeGradient)"
+          />
+
+          <path
+            d="M24 11c0-5 3-8 7-9"
+            fill="none"
+            stroke="#70451f"
+            strokeWidth="3"
+            strokeLinecap="round"
+          />
+
+          <path
+            d="M27 5c5-3 8-1 10 2-5 2-8 2-10-2Z"
+            fill="#45a64c"
+          />
+
+          <ellipse
+            cx="18"
+            cy="20"
+            rx="4"
+            ry="6"
+            fill="#fff"
+            opacity=".28"
+          />
+        </svg>
+      );
+
+    case "watermelon":
+      return (
+        <svg {...common}>
+          <path
+            d="M7 16c2 17 11 25 17 25s15-8 17-25H7Z"
+            fill="#ef4545"
+            stroke="#188c4b"
+            strokeWidth="4"
+          />
+
+          <path
+            d="M9 16h30"
+            stroke="#9bdd55"
+            strokeWidth="3"
+          />
+
+          {[
+            [15, 23],
+            [24, 29],
+            [33, 23],
+            [20, 35],
+            [29, 35],
+          ].map(([cx, cy], index) => (
+            <ellipse
+              key={index}
+              cx={cx}
+              cy={cy}
+              rx="1.5"
+              ry="3"
+              fill="#231512"
+            />
+          ))}
+        </svg>
+      );
+
+    case "cherry":
+      return (
+        <svg {...common}>
+          <path
+            d="M24 14C20 7 15 5 11 4M24 14c5-7 10-9 14-10"
+            fill="none"
+            stroke="#3d6f2c"
+            strokeWidth="3"
+            strokeLinecap="round"
+          />
+
+          <circle
+            cx="15"
+            cy="28"
+            r="9"
+            fill="#d82d3d"
+          />
+
+          <circle
+            cx="33"
+            cy="28"
+            r="9"
+            fill="#b91f32"
+          />
+
+          <circle
+            cx="12"
+            cy="25"
+            r="2.5"
+            fill="#fff"
+            opacity=".4"
+          />
+
+          <circle
+            cx="30"
+            cy="25"
+            r="2.5"
+            fill="#fff"
+            opacity=".3"
+          />
+        </svg>
+      );
+
+    case "grapes":
+      return (
+        <svg {...common}>
+          <path
+            d="M24 15c0-6 3-10 8-12"
+            fill="none"
+            stroke="#6a4522"
+            strokeWidth="3"
+            strokeLinecap="round"
+          />
+
+          <path
+            d="M27 6c5-4 9-2 11 1-4 3-8 3-11-1Z"
+            fill="#3e9b47"
+          />
+
+          {[
+            [18, 20],
+            [26, 20],
+            [34, 20],
+            [14, 27],
+            [22, 27],
+            [30, 27],
+            [38, 27],
+            [18, 34],
+            [26, 34],
+            [34, 34],
+            [26, 41],
+          ].map(([cx, cy], index) => (
+            <circle
+              key={index}
+              cx={cx}
+              cy={cy}
+              r="5"
+              fill={
+                index % 2
+                  ? "#7b3fc6"
+                  : "#6630a8"
+              }
+            />
+          ))}
+        </svg>
+      );
+
+    case "strawberry":
+      return (
+        <svg {...common}>
+          <path
+            d="M10 16c4-6 24-6 28 0 0 12-7 24-14 28-7-4-14-16-14-28Z"
+            fill="#ef3e4d"
+          />
+
+          <path
+            d="M24 16c-6-8-12-7-15-4 3 5 7 7 12 6"
+            fill="#42a84d"
+          />
+
+          <path
+            d="M24 16c6-8 12-7 15-4-3 5-7 7-12 6"
+            fill="#318e43"
+          />
+
+          {[
+            [17, 22],
+            [25, 21],
+            [32, 23],
+            [20, 29],
+            [28, 29],
+            [24, 36],
+          ].map(([cx, cy], index) => (
+            <ellipse
+              key={index}
+              cx={cx}
+              cy={cy}
+              rx="1.2"
+              ry="2"
+              fill="#ffe7a5"
+            />
+          ))}
+        </svg>
+      );
+
+    default:
+      return null;
+  }
 }
+
+/* =========================================================
+   SNAKE PATH
+========================================================= */
 
 function smoothSnakePath(points) {
-  if (points.length < 2) return '';
-  let d = `M ${points[0].x} ${points[0].y}`;
-  for (let i = 1; i < points.length; i += 1) {
-    const point = points[i];
-    const next = points[i + 1];
-    if (!next) d += ` Q ${point.x} ${point.y} ${point.x} ${point.y}`;
-    else d += ` Q ${point.x} ${point.y} ${(point.x + next.x) / 2} ${(point.y + next.y) / 2}`;
+  if (!points.length) return "";
+
+  if (points.length === 1) {
+    return `M ${points[0].x} ${points[0].y}`;
   }
-  return d;
+
+  let path = `M ${points[0].x} ${points[0].y}`;
+
+  for (let i = 1; i < points.length; i++) {
+    const current = points[i];
+
+    path += ` L ${current.x} ${current.y}`;
+  }
+
+  return path;
 }
+
+/* =========================================================
+   APP
+========================================================= */
 
 export default function App() {
   const [snake, setSnake] = useState(START);
-  const [fruit, setFruit] = useState(() => placeFruit(START));
-  const [score, setScore] = useState(1);
-  const [status, setStatus] = useState('playing');
+
+  // First fruit = Apple
+  const [fruit, setFruit] = useState(() =>
+    placeFruit(START, FRUITS[0])
+  );
+
+  // Score starts from 0
+  const [score, setScore] = useState(0);
+
+  const [status, setStatus] = useState("playing");
+
   const snakeRef = useRef(snake);
   const fruitRef = useRef(fruit);
   const scoreRef = useRef(score);
+
+  // Snake initially moves RIGHT
+  const directionRef = useRef({
+    x: 1,
+    y: 0,
+  });
+
   snakeRef.current = snake;
   fruitRef.current = fruit;
   scoreRef.current = score;
 
-  function restart() {
-    setSnake(START);
-    setFruit(placeFruit(START, 'apple'));
-    setScore(1);
-    setStatus('playing');
+  /* =========================================================
+     CHANGE DIRECTION
+========================================================= */
+
+  function moveSnake(direction) {
+    const current = directionRef.current;
+
+    // Prevent directly turning backwards
+    if (
+      direction.x === -current.x &&
+      direction.y === -current.y
+    ) {
+      return;
+    }
+
+    directionRef.current = direction;
   }
 
+  /* =========================================================
+     RESTART
+========================================================= */
+
+  function restart() {
+    setSnake(START);
+
+    // New random Apple position
+    setFruit(placeFruit(START, FRUITS[0]));
+
+    setScore(0);
+
+    setStatus("playing");
+
+    // Restart direction = RIGHT
+    directionRef.current = {
+      x: 1,
+      y: 0,
+    };
+  }
+
+  /* =========================================================
+     KEYBOARD ARROWS
+========================================================= */
+
   useEffect(() => {
-    if (status !== 'playing') return undefined;
+    function handleKeyDown(event) {
+      const directions = {
+        ArrowUp: {
+          x: 0,
+          y: -1,
+        },
+
+        ArrowDown: {
+          x: 0,
+          y: 1,
+        },
+
+        ArrowLeft: {
+          x: -1,
+          y: 0,
+        },
+
+        ArrowRight: {
+          x: 1,
+          y: 0,
+        },
+      };
+
+      const direction = directions[event.key];
+
+      if (direction) {
+        event.preventDefault();
+        moveSnake(direction);
+      }
+    }
+
+    window.addEventListener(
+      "keydown",
+      handleKeyDown
+    );
+
+    return () => {
+      window.removeEventListener(
+        "keydown",
+        handleKeyDown
+      );
+    };
+  }, []);
+
+  /* =========================================================
+     GAME LOOP
+========================================================= */
+
+  useEffect(() => {
+    if (status !== "playing") {
+      return undefined;
+    }
+
     const timer = window.setInterval(() => {
       const currentSnake = snakeRef.current;
       const currentFruit = fruitRef.current;
-      const step = findNextStep(currentSnake, currentFruit);
-      const head = { x: currentSnake[0].x + step.x, y: currentSnake[0].y + step.y };
-      const eating = head.x === currentFruit.x && head.y === currentFruit.y;
-      const collisionBody = eating ? currentSnake : currentSnake.slice(0, -1);
 
-      if (head.x < 0 || head.x >= COLS || head.y < 0 || head.y >= ROWS || collisionBody.some((part) => part.x === head.x && part.y === head.y)) {
-        setStatus('over');
+      const direction = directionRef.current;
+
+      const head = {
+        x: currentSnake[0].x + direction.x,
+        y: currentSnake[0].y + direction.y,
+      };
+
+      /* =====================================================
+         BORDER HIT
+      ===================================================== */
+
+      if (
+        head.x < 0 ||
+        head.x >= COLS ||
+        head.y < 0 ||
+        head.y >= ROWS
+      ) {
+        setStatus("over");
         return;
       }
 
-      const nextSnake = [head, ...currentSnake];
-      if (!eating) nextSnake.pop();
+      /* =====================================================
+         FRUIT CATCH
+      ===================================================== */
+
+      const eating =
+        head.x === currentFruit.x &&
+        head.y === currentFruit.y;
+
+      /* =====================================================
+         BODY COLLISION
+      ===================================================== */
+
+      const collisionBody = eating
+        ? currentSnake
+        : currentSnake.slice(0, -1);
+
+      const hitBody = collisionBody.some(
+        (part) =>
+          part.x === head.x &&
+          part.y === head.y
+      );
+
+      if (hitBody) {
+        setStatus("over");
+        return;
+      }
+
+      /* =====================================================
+         MOVE SNAKE
+      ===================================================== */
+
+      const nextSnake = [
+        head,
+        ...currentSnake,
+      ];
+
+      if (!eating) {
+        nextSnake.pop();
+      }
+
       setSnake(nextSnake);
 
+      /* =====================================================
+         EAT FRUIT
+      ===================================================== */
+
       if (eating) {
-        if (scoreRef.current >= 10) {
-          setStatus('won');
+        const nextScore =
+          scoreRef.current + 1;
+
+        // 10 fruits = WIN
+        if (nextScore === 10) {
+          setScore(10);
+          setStatus("won");
           return;
         }
-        const nextScore = scoreRef.current + 1;
+
         setScore(nextScore);
-        setFruit(placeFruit(nextSnake, FRUITS[nextScore - 1]));
+
+        // NEXT FRUIT = NEW RANDOM POSITION
+        setFruit(
+          placeFruit(
+            nextSnake,
+            FRUITS[nextScore]
+          )
+        );
+
+        // Direction remains same
       }
     }, 125);
-    return () => window.clearInterval(timer);
-  }, [status, score]);
 
-  const points = snake.map((part) => ({ x: part.x * CELL + 12, y: part.y * CELL + 12 }));
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [status]);
+
+  /* =========================================================
+     SNAKE POINTS
+========================================================= */
+
+  const points = snake.map((part) => ({
+    x: part.x * CELL + 12,
+    y: part.y * CELL + 12,
+  }));
+
   const path = smoothSnakePath(points);
-  const head = points[0];
-  const neck = points[1] || { x: head.x - 1, y: head.y };
-  const dx = Math.sign(head.x - neck.x);
-  const dy = Math.sign(head.y - neck.y);
-  const headAngle = Math.atan2(dy, dx) * 180 / Math.PI;
 
-  return <main className="game-page">
-    <section className="game-card" aria-label="Automatic snake game">
-      <header className="game-heading">
-        <svg className="logo-snake" viewBox="0 0 48 40" aria-hidden="true"><defs><linearGradient id="logoGradient" x2="0" y2="1"><stop stopColor="#a8ffb9"/><stop offset="1" stopColor="#16bd39"/></linearGradient></defs><path d="M7 9c0-5 7-5 7 0v13c0 7 8 9 12 4 3-4 1-11 6-11s9 8 9 14" fill="none" stroke="url(#logoGradient)" strokeWidth="5" strokeLinecap="round"/><circle cx="10.5" cy="8" r="1.2" fill="#071008"/></svg>
-        <h1>SNAKE GAME</h1>
-      </header>
-      <div className="board-frame">
-        <svg className="board" viewBox="0 0 576 480" role="img" aria-label={`Snake chasing ${fruitLabel(fruit.type)}`}>
-          <defs>
-            <linearGradient id="boardGradient" x1="0" y1="0" x2="1" y2="1"><stop stopColor="#101c16"/><stop offset="1" stopColor="#09110c"/></linearGradient>
-            <pattern id="boardGrid" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#a5e4b3" strokeOpacity=".07" strokeWidth=".7"/></pattern>
-            <linearGradient id="snakeGradient" x1="0" y1="0" x2="0" y2="1"><stop stopColor="#c7ffd6"/><stop offset=".28" stopColor="#42ec85"/><stop offset="1" stopColor="#078b4e"/></linearGradient>
-            <linearGradient id="snakeLine" x1="0" y1="0" x2="0" y2="1"><stop stopColor="#aaffc4"/><stop offset=".45" stopColor="#35d875"/><stop offset="1" stopColor="#087647"/></linearGradient>
-            <radialGradient id="appleGradient" cx="35%" cy="25%"><stop stopColor="#fff1d7"/><stop offset=".22" stopColor="#ff9270"/><stop offset="1" stopColor="#e62940"/></radialGradient>
-            <filter id="gameGlow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-          </defs>
-          <rect width="576" height="480" rx="12" fill="url(#boardGradient)" />
-          <rect width="576" height="480" rx="12" fill="url(#boardGrid)" />
-          <g filter="url(#gameGlow)" transform={`translate(${fruit.x * CELL} ${fruit.y * CELL}) scale(.8)`}><g className="fruit-float"><Fruit type={fruit.type} /></g></g>
-          <g filter="url(#gameGlow)" transform={`translate(${fruit.x * CELL + 12} ${fruit.y * CELL + 12}) scale(1.1) translate(-15 -18)`}><g className="fruit-float"><Fruit type={fruit.type} /></g></g>
-          <g filter="url(#gameGlow)">
-            <path d={path} fill="none" stroke="#06152b" strokeWidth="18" strokeLinecap="round" strokeLinejoin="round" opacity=".65" />
-            <path d={path} fill="none" stroke="url(#snakeLine)" strokeWidth="14" strokeLinecap="round" strokeLinejoin="round" />
-            <path d={path} fill="none" stroke="#d7f2ff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" opacity=".48" />
-            {points.slice(1, -1).map((point, index) => {
-              const before = points[index];
-              const after = points[index + 2];
-              const angle = Math.atan2(after.y - before.y, after.x - before.x) * 180 / Math.PI;
-              return <g key={`scale-${point.x}-${point.y}-${index}`} transform={`translate(${point.x} ${point.y}) rotate(${angle})`}>
-            <path d="M-3.5-4Q0-1 3.5-4" fill="none" stroke="#d8ffe3" strokeWidth="1.15" strokeLinecap="round" opacity=".68" />
-            <path d="M-3.5 4Q0 1 3.5 4" fill="none" stroke="#087647" strokeWidth="1.25" strokeLinecap="round" opacity=".8" />
-              </g>;
-            })}
-            <g transform={`translate(${head.x} ${head.y}) rotate(${headAngle})`}>
-              <path d="M-8-7C-3-11 5-10 9-6L14 0 9 6C5 10-3 11-8 7Q-11 0-8-7Z" fill="url(#snakeGradient)" stroke="#c8eaff" strokeWidth="1.25" />
-              <ellipse cx="3.5" cy="-3.7" rx="1.55" ry="1.85" fill="#06172c" />
-              <ellipse cx="3.5" cy="3.7" rx="1.55" ry="1.85" fill="#06172c" />
-              <circle cx="3.9" cy="-3.8" r=".5" fill="white" />
-              <circle cx="3.9" cy="2.8" r=".5" fill="white" />
-              <path d="M12 0H21M21 0l5-4M21 0l5 4" fill="none" stroke="#ff5069" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+  const head = points[0];
+
+  const neck = points[1] || {
+    x: head.x - 1,
+    y: head.y,
+  };
+
+  const dx = Math.sign(
+    head.x - neck.x
+  );
+
+  const dy = Math.sign(
+    head.y - neck.y
+  );
+
+  const headAngle =
+    (Math.atan2(dy, dx) * 180) / Math.PI;
+
+  /* =========================================================
+     UI
+========================================================= */
+
+  return (
+    <main className="game-page">
+      <section className="game-card">
+
+        {/* HEADING */}
+
+        <div className="game-heading">
+          <svg
+            className="logo-snake"
+            viewBox="0 0 48 40"
+            aria-hidden="true"
+          >
+            <path
+              d="M5 28C5 17 13 11 23 13c9 2 12 9 8 14-4 5-12 4-14-1-2-5 4-9 9-6"
+              fill="none"
+              stroke="#20db43"
+              strokeWidth="7"
+              strokeLinecap="round"
+            />
+
+            <circle
+              cx="34"
+              cy="16"
+              r="7"
+              fill="#20db43"
+            />
+
+            <circle
+              cx="36"
+              cy="14"
+              r="1.5"
+              fill="#090a09"
+            />
+          </svg>
+
+          <h1>SNAKE GAME</h1>
+        </div>
+
+        {/* BOARD */}
+
+        <div className="board-frame">
+          <svg
+            className="board"
+            viewBox={`0 0 ${COLS * CELL} ${ROWS * CELL}`}
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <defs>
+
+              {/* Snake gradient */}
+
+              <linearGradient
+                id="snakeLine"
+                x1="0"
+                y1="0"
+                x2="1"
+                y2="1"
+              >
+                <stop
+                  offset="0%"
+                  stopColor="#23ef4a"
+                />
+
+                <stop
+                  offset="50%"
+                  stopColor="#0fbd3a"
+                />
+
+                <stop
+                  offset="100%"
+                  stopColor="#087b2d"
+                />
+              </linearGradient>
+
+              {/* Snake glow */}
+
+              <filter id="gameGlow">
+                <feGaussianBlur
+                  stdDeviation="2.5"
+                  result="blur"
+                />
+
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+
+            </defs>
+
+            {/* BOARD BACKGROUND */}
+
+            <rect
+              width={COLS * CELL}
+              height={ROWS * CELL}
+              fill="#101411"
+            />
+
+            {/* GRID */}
+
+            {Array.from({
+              length: COLS + 1,
+            }).map((_, index) => (
+              <line
+                key={`v-${index}`}
+                x1={index * CELL}
+                y1="0"
+                x2={index * CELL}
+                y2={ROWS * CELL}
+                stroke="#1c231e"
+                strokeWidth="1"
+              />
+            ))}
+
+            {Array.from({
+              length: ROWS + 1,
+            }).map((_, index) => (
+              <line
+                key={`h-${index}`}
+                x1="0"
+                y1={index * CELL}
+                x2={COLS * CELL}
+                y2={index * CELL}
+                stroke="#1c231e"
+                strokeWidth="1"
+              />
+            ))}
+
+            {/* =================================================
+                RANDOM FRUIT
+            ================================================= */}
+
+            <g
+               transform={`translate(
+    ${fruit.x * CELL + CELL / 2}
+    ${fruit.y * CELL + CELL / 2}
+  )`}
+>
+  <g transform="translate(-17 -17)">
+    <Fruit type={fruit.type} />
+  </g>
             </g>
-          </g>
-        </svg>
-      </div>
-      <div className="game-controls"><strong>Score: <span>{score}</span></strong><button onClick={restart}>Restart</button></div>
-      {status !== 'playing' && <div className="game-over-banner">{status === 'won' ? 'YOU WIN!' : 'GAME OVER!'}</div>}
-    </section>
-  </main>;
+
+            {/* =================================================
+                SNAKE
+            ================================================= */}
+
+            <g filter="url(#gameGlow)">
+
+              {/* Outer body */}
+
+              <path
+                d={path}
+                fill="none"
+                stroke="#06240d"
+                strokeWidth="19"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+
+              {/* Main body */}
+
+              <path
+                d={path}
+                fill="none"
+                stroke="#20db43"
+                strokeWidth="15"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+
+              {/* Highlight */}
+
+              <path
+                d={path}
+                fill="none"
+                stroke="#7cff91"
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                opacity="0.3"
+              />
+
+              {/* HEAD */}
+
+              {head && (
+                <g
+                  transform={`
+                    translate(${head.x} ${head.y})
+                    rotate(${headAngle})
+                  `}
+                >
+                  <ellipse
+                    cx="4"
+                    cy="0"
+                    rx="10"
+                    ry="9"
+                    fill="#18d844"
+                  />
+
+                  <ellipse
+                    cx="7"
+                    cy="-4"
+                    rx="2.2"
+                    ry="2.2"
+                    fill="#ffffff"
+                  />
+
+                  <circle
+                    cx="7.5"
+                    cy="-4"
+                    r="1"
+                    fill="#071007"
+                  />
+
+                  <path
+                    d="M12 2h5"
+                    stroke="#ef4444"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                  />
+                </g>
+              )}
+
+            </g>
+          </svg>
+
+          {/* GAME RESULT */}
+
+          {status !== "playing" && (
+            <div className="game-overlay">
+              <div>
+                <h2>
+                  {status === "won"
+                    ? "YOU WIN!"
+                    : "YOU OUT!"}
+                </h2>
+
+                <p>
+                  {status === "won"
+                    ? "Score reached 10"
+                    : "Snake hit the border"}
+                </p>
+
+                <button
+                  type="button"
+                  onClick={restart}
+                >
+                  Restart
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* CONTROLS */}
+
+        <div className="game-controls">
+
+          <strong>
+            Score: <span>{score}</span>
+          </strong>
+
+          <div className="arrow-controls">
+
+            <button
+              type="button"
+              onClick={() =>
+                moveSnake({
+                  x: 0,
+                  y: -1,
+                })
+              }
+              aria-label="Move up"
+            >
+              ↑
+            </button>
+
+            <div>
+
+              <button
+                type="button"
+                onClick={() =>
+                  moveSnake({
+                    x: -1,
+                    y: 0,
+                  })
+                }
+                aria-label="Move left"
+              >
+                ←
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  moveSnake({
+                    x: 0,
+                    y: 1,
+                  })
+                }
+                aria-label="Move down"
+              >
+                ↓
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  moveSnake({
+                    x: 1,
+                    y: 0,
+                  })
+                }
+                aria-label="Move right"
+              >
+                →
+              </button>
+
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={restart}
+          >
+            Restart
+          </button>
+
+        </div>
+      </section>
+    </main>
+  );
 }

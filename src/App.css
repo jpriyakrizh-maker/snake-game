@@ -86,8 +86,13 @@ button {
   transform-box: fill-box;
   transform-origin: center;
   animation: fruit-hover 1.8s ease-in-out infinite;
+  pointer-events: none;
 }
-
+.fruit-svg {
+  display: block;
+  width: 34%;
+  height: 34%;
+}
 @keyframes fruit-hover {
   0%,
   100% {
@@ -106,6 +111,10 @@ button {
   }
 }
 
+/* =========================
+   CONTROLS
+========================= */
+
 .game-controls {
   display: flex;
   align-items: center;
@@ -119,8 +128,50 @@ button {
   font-size: 14px;
 }
 
-.game-controls button,
-.game-overlay button {
+/* Arrow buttons */
+
+.arrow-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.arrow-controls > div {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.arrow-controls button {
+  min-width: 30px !important;
+  width: 30px;
+  height: 28px;
+  padding: 0 !important;
+  border: 1px solid #5f5f5f !important;
+  border-radius: 5px !important;
+  color: #20db43 !important;
+  background: #111511 !important;
+  font-size: 17px !important;
+  font-weight: 900;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.arrow-controls button:hover {
+  color: #ffffff !important;
+  background: #18351e !important;
+  border-color: #20db43 !important;
+  box-shadow: 0 0 8px #20db4355;
+}
+
+.arrow-controls button:active {
+  transform: scale(0.92);
+}
+
+/* Restart */
+
+.game-controls > button {
   min-width: 75px;
   padding: 7px 15px;
   border: 1px solid #fff;
@@ -132,8 +183,7 @@ button {
   cursor: pointer;
 }
 
-.game-controls button:hover,
-.game-overlay button:hover {
+.game-controls > button:hover {
   background: #e14632;
 }
 
@@ -214,5 +264,15 @@ button {
 
   .game-heading h1 {
     font-size: 18px;
+  }
+
+  .game-controls {
+    gap: 10px;
+  }
+
+  .arrow-controls button {
+    min-width: 28px !important;
+    width: 28px;
+    height: 27px;
   }
 }
